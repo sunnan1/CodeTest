@@ -7,6 +7,9 @@ use DTApi\Http\Requests;
 use DTApi\Models\Distance;
 use Illuminate\Http\Request;
 use DTApi\Repository\BookingRepository;
+use DTApi\Http\Controllers\Trait\BookingTrait;
+
+
 
 /**
  * Class BookingController
@@ -14,6 +17,11 @@ use DTApi\Repository\BookingRepository;
  */
 class BookingController extends Controller
 {
+
+    use BookingTrait;
+
+    /* Include helpers.php in composer.json for autoloading in files array and run composer dump-autoload*/
+
 
     /**
      * @var BookingRepository
@@ -35,17 +43,7 @@ class BookingController extends Controller
      */
     public function index(Request $request)
     {
-        if($user_id = $request->get('user_id')) {
-
-            $response = $this->repository->getUsersJobs($user_id);
-
-        }
-        elseif($request->__authenticatedUser->user_type == env('ADMIN_ROLE_ID') || $request->__authenticatedUser->user_type == env('SUPERADMIN_ROLE_ID'))
-        {
-            $response = $this->repository->getAll($request);
-        }
-
-        return response($response);
+        return $this->getBookingUsers($request);    
     }
 
     /**
@@ -54,9 +52,11 @@ class BookingController extends Controller
      */
     public function show($id)
     {
-        $job = $this->repository->with('translatorJobRel.user')->find($id);
-
-        return response($job);
+        /* Validation is required */
+        $this->validate($request, [
+            'id' => ['required', 'numeric']
+        ]);
+        return $this->getUser($id);
     }
 
     /**
@@ -65,12 +65,11 @@ class BookingController extends Controller
      */
     public function store(Request $request)
     {
-        $data = $request->all();
-
-        $response = $this->repository->store($request->__authenticatedUser, $data);
-
-        return response($response);
-
+        /* Validate request to save Data*/
+        $this->validate($request, [
+            'key' => ['required', 'numeric']
+        ]);
+        return $this->saveUser($request);
     }
 
     /**
@@ -80,11 +79,12 @@ class BookingController extends Controller
      */
     public function update($id, Request $request)
     {
-        $data = $request->all();
-        $cuser = $request->__authenticatedUser;
-        $response = $this->repository->updateJob($id, array_except($data, ['_token', 'submit']), $cuser);
 
-        return response($response);
+        /* Validate request to update Data*/
+        $this->validate($request, [
+            'id' => ['required', 'numeric']
+        ]);
+        $this->updateJob($id , $request)
     }
 
     /**
@@ -93,7 +93,8 @@ class BookingController extends Controller
      */
     public function immediateJobEmail(Request $request)
     {
-        $adminSenderEmail = config('app.adminemail');
+        /* Change code to Trait function*/
+        $adminSenderEmail = adminemail();
         $data = $request->all();
 
         $response = $this->repository->storeJobEmail($data);
@@ -123,7 +124,7 @@ class BookingController extends Controller
     public function acceptJob(Request $request)
     {
         $data = $request->all();
-        $user = $request->__authenticatedUser;
+        $user = $request->__authenticatedUser; // why using this when you have data in $data variable
 
         $response = $this->repository->acceptJob($data, $user);
 
@@ -147,7 +148,7 @@ class BookingController extends Controller
     public function cancelJob(Request $request)
     {
         $data = $request->all();
-        $user = $request->__authenticatedUser;
+        $user = $request->__authenticatedUser; // why using this when you have data in $data variable
 
         $response = $this->repository->cancelJobAjax($data, $user);
 
@@ -185,7 +186,7 @@ class BookingController extends Controller
     public function getPotentialJobs(Request $request)
     {
         $data = $request->all();
-        $user = $request->__authenticatedUser;
+        $user = $request->__authenticatedUser; // why using this when you have data in $data variable
 
         $response = $this->repository->getPotentialJobs($user);
 
@@ -196,17 +197,26 @@ class BookingController extends Controller
     {
         $data = $request->all();
 
-        if (isset($data['distance']) && $data['distance'] != "") {
+        // instead of validating a key in if condition use Validator to validate
+
+
+        if (isset($data['distance']) && $data['distance'] != "") {   
             $distance = $data['distance'];
         } else {
             $distance = "";
         }
+
+        
+        $distance = (isset($data['distance']) && $data['distance'] != "") ? $distance : ''; // make code simpler and shorter
+
+
         if (isset($data['time']) && $data['time'] != "") {
             $time = $data['time'];
         } else {
             $time = "";
         }
         if (isset($data['jobid']) && $data['jobid'] != "") {
+            // what if this conditions fails ? jobid will throw an exception in where condition below
             $jobid = $data['jobid'];
         }
 
@@ -245,13 +255,14 @@ class BookingController extends Controller
             $affectedRows = Distance::where('job_id', '=', $jobid)->update(array('distance' => $distance, 'time' => $time));
         }
 
-        if ($admincomment || $session || $flagged || $manually_handled || $by_admin) {
-
+        // instead of using string variables in if condition as boolean variable if you want to validate if they have values use isset($variable)
+        if ($admincomment || $session || $flagged || $manually_handled || $by_admin) { 
             $affectedRows1 = Job::where('id', '=', $jobid)->update(array('admin_comments' => $admincomment, 'flagged' => $flagged, 'session_time' => $session, 'manually_handled' => $manually_handled, 'by_admin' => $by_admin));
 
+            // where $affectedRows1 variable is being used 
         }
 
-        return response('Record updated!');
+        return response('Record updated!'); // not a good practice, define string in messages.php and call that key
     }
 
     public function reopen(Request $request)
@@ -287,7 +298,7 @@ class BookingController extends Controller
             $this->repository->sendSMSNotificationToTranslator($job);
             return response(['success' => 'SMS sent']);
         } catch (\Exception $e) {
-            return response(['success' => $e->getMessage()]);
+            return response(['success' => $e->getMessage()]); // if its an exception the message shouldn't be success it must be either danger or error
         }
     }
 

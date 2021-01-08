@@ -63,11 +63,17 @@ class BookingRepository extends BaseRepository
         $noramlJobs = array();
         if ($cuser && $cuser->is('customer')) {
             $jobs = $cuser->jobs()->with('user.userMeta', 'user.average', 'translatorJobRel.user.average', 'language', 'feedback')->whereIn('status', ['pending', 'assigned', 'started'])->orderBy('due', 'asc')->get();
-            $usertype = 'customer';
+
+            // instead define scopes in model User model
+            $jobs = $cuser->jobs()->userMeta()->average()->average()->language()->feedback()->filterStatus(['pending', 'assigned', 'started'])->orderBy('due', 'asc')->get();
+            // this looks much cleaner
+
+            $usertype = 'customer'; // define string on a single file and call it accordingly
+
         } elseif ($cuser && $cuser->is('translator')) {
             $jobs = Job::getTranslatorJobs($cuser->id, 'new');
-            $jobs = $jobs->pluck('jobs')->all();
-            $usertype = 'translator';
+            $jobs = $jobs->pluck('jobs')->all(); 
+            $usertype = 'translator'; // define string on a single file and call it accordingly
         }
         if ($jobs) {
             foreach ($jobs as $jobitem) {
@@ -91,18 +97,27 @@ class BookingRepository extends BaseRepository
      */
     public function getUsersJobsHistory($user_id, Request $request)
     {
+
         $page = $request->get('page');
         if (isset($page)) {
             $pagenum = $page;
         } else {
             $pagenum = "1";
         }
-        $cuser = User::find($user_id);
+
+        // CHANGE THE ABOVE CODE TO
+
+        $page = ($request->has('page')) ? $request->get('page') : 1;
+
+        $cuser = User::find($user_id); // 
         $usertype = '';
         $emergencyJobs = array();
         $noramlJobs = array();
         if ($cuser && $cuser->is('customer')) {
             $jobs = $cuser->jobs()->with('user.userMeta', 'user.average', 'translatorJobRel.user.average', 'language', 'feedback', 'distance')->whereIn('status', ['completed', 'withdrawbefore24', 'withdrawafter24', 'timedout'])->orderBy('due', 'desc')->paginate(15);
+
+            // instead define scopes in model User model as mentioned in above function
+
             $usertype = 'customer';
             return ['emergencyJobs' => $emergencyJobs, 'noramlJobs' => [], 'jobs' => $jobs, 'cuser' => $cuser, 'usertype' => $usertype, 'numpages' => 0, 'pagenum' => 0];
         } elseif ($cuser && $cuser->is('translator')) {
@@ -133,12 +148,16 @@ class BookingRepository extends BaseRepository
         if ($user->user_type == env('CUSTOMER_ROLE_ID')) {
             $cuser = $user;
 
+            // below code will check every if condition
+            // instead use VALIDATOR to validate the request
+
             if (!isset($data['from_language_id'])) {
                 $response['status'] = 'fail';
                 $response['message'] = "Du måste fylla in alla fält";
                 $response['field_name'] = "from_language_id";
                 return $response;
             }
+
             if ($data['immediate'] == 'no') {
                 if (isset($data['due_date']) && $data['due_date'] == '') {
                     $response['status'] = 'fail';
@@ -447,6 +466,8 @@ class BookingRepository extends BaseRepository
         $user_meta = UserMeta::where('user_id', $user_id)->first();
         $translator_type = $user_meta->translator_type;
         $job_type = 'unpaid';
+
+        /* Best practice is to use numeric code instead of strings for types or status */
         if ($translator_type == 'professional')
             $job_type = 'paid';   /*show all jobs for professionals.*/
         else if ($translator_type == 'rwstranslator')

@@ -1,0 +1,11 @@
+I choose to refactor some of the code
+
+1. Traits must be define to achieve code modularity
+2. No proper SOLID principles practice being used
+2. Define helpers for all hardcoded strings used in comparison statements so if in future developer need to change a value in hardcoded string it must be placed at a single place
+4. I have mentioned comments and corrected the code
+5. Instead of validating a key in if condition use Validator to validate
+6. instead of using string variables in if condition as boolean variable if you want to validate if they have values use isset($variable)
+7. not a good practice, define string in messages.php and call that key
+8. if its an exception the message shouldn't be success it must be either danger or error
+9. Instead of using with() with every relation model define scopes in Models

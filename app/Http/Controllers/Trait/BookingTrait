@@ -1,0 +1,50 @@
+<?php
+
+namespace DTApi\Http\Controllers;
+
+
+trait BookingTrait
+{
+	public function getBookingUsers($request)
+	{
+		if($user_id = $request->get('user_id')) // Error in this line, in condition statement use comparison operator == { 
+            $response = $this->repository->getUsersJobs($user_id);
+        }
+        elseif($request->__authenticatedUser->user_type == admin() || $request->__authenticatedUser->user_type == superadmin())
+        {
+            $response = $this->repository->getAll($request);
+        }
+        return response($response)
+	}
+
+	public function getUser($id)
+	{
+		if ($id != '')
+		{
+			return $this->repository->with('translatorJobRel.user')->find($id);
+		}
+		else 
+		{
+		 	$job = // custom response here
+		}
+
+		return response($job)
+	}
+
+	public function saveUser($request)
+	{
+        $data = $request->all();
+        $response = $this->repository->store($request->__authenticatedUser, $data);
+        return response($response)
+	}
+
+	public function updateJob($id , $request)
+	{
+		$data = $request->all();
+        $cuser = $request->__authenticatedUser;
+        $response = $this->repository->updateJob($id, array_except($data, ['_token', 'submit']), $cuser);
+        return response($response)
+	}
+}
+
+?>
